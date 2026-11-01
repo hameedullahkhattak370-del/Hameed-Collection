@@ -1,0 +1,6 @@
+{
+  "name": "Hameed Collection",
+  "description": "Premium Pakistani fashion and lifestyle shopping store with live catalog, Cash on Delivery orders, and seller admin portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

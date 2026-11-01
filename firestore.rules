@@ -1,0 +1,173 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        ('email' in request.auth.token && (
+          request.auth.token.email == 'hameedullahkhattak370@gmail.com' ||
+          request.auth.token.email.lower() == 'hameedullahkhattak370@gmail.com'
+        )) ||
+        (request.auth.uid != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid))) ||
+        (request.auth.uid != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isValidProduct(data) {
+      return data.title is string && data.title.size() >= 2 && data.title.size() <= 200 &&
+             data.description is string && data.description.size() <= 2000 &&
+             data.category is string && data.category.size() <= 100 &&
+             (!('categoryId' in data) || (data.categoryId is string && data.categoryId.size() <= 128)) &&
+             data.price is int && data.price >= 0 && data.price <= 10000000 &&
+             (!('salePrice' in data) || (data.salePrice is int && data.salePrice >= 0 && data.salePrice <= 10000000)) &&
+             data.stock is int && data.stock >= 0 && data.stock <= 1000000 &&
+             (!('images' in data) || (data.images is list && data.images.size() <= 10 && (data.images.size() == 0 || data.images[0] is string))) &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 200000)) &&
+             (!('sizes' in data) || (data.sizes is list && data.sizes.size() <= 10 && (data.sizes.size() == 0 || data.sizes[0] is string))) &&
+             (!('colors' in data) || (data.colors is list && data.colors.size() <= 10 && (data.colors.size() == 0 || data.colors[0] is string))) &&
+             (!('isFeatured' in data) || data.isFeatured is bool) &&
+             (!('isNewArrival' in data) || data.isNewArrival is bool) &&
+             (!('isArchived' in data) || data.isArchived is bool) &&
+             (!('isActive' in data) || data.isActive is bool) &&
+             (!('isAvailable' in data) || data.isAvailable is bool);
+    }
+
+    function isValidCategory(data) {
+      return data.name is string && data.name.size() >= 2 && data.name.size() <= 100 &&
+             (!('id' in data) || (data.id is string && data.id.size() <= 128)) &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 200000)) &&
+             (!('isActive' in data) || data.isActive is bool);
+    }
+
+    function isValidOrder(data) {
+      return data.orderNumber is string && data.orderNumber.size() >= 3 && data.orderNumber.size() <= 64 &&
+             data.customerId is string && data.customerId.size() <= 128 &&
+             data.customerName is string && data.customerName.size() >= 2 && data.customerName.size() <= 100 &&
+             data.customerPhone is string && data.customerPhone.size() >= 7 && data.customerPhone.size() <= 30 &&
+             (!('customerEmail' in data) || (data.customerEmail is string && data.customerEmail.size() <= 150)) &&
+             data.city is string && data.city.size() >= 2 && data.city.size() <= 100 &&
+             (!('area' in data) || (data.area is string && data.area.size() <= 150)) &&
+             data.deliveryAddress is string && data.deliveryAddress.size() >= 5 && data.deliveryAddress.size() <= 500 &&
+             (!('deliveryNotes' in data) || (data.deliveryNotes is string && data.deliveryNotes.size() <= 500)) &&
+             data.items is list && data.items.size() >= 1 && data.items.size() <= 50 &&
+             data.subtotal is int && data.subtotal >= 0 &&
+             data.deliveryFee is int && data.deliveryFee >= 0 &&
+             data.totalAmount is int && data.totalAmount >= 0 &&
+             data.paymentMethod == 'COD' &&
+             (!('paymentStatus' in data) || data.paymentStatus in ['Unpaid', 'Paid', 'Refunded']) &&
+             (!('isGuest' in data) || data.isGuest is bool) &&
+             data.status in ['Pending', 'Confirmed', 'Packed', 'Dispatched', 'Delivered', 'Cancelled', 'Returned'] &&
+             (!('courierName' in data) || (data.courierName is string && data.courierName.size() <= 100)) &&
+             (!('trackingNumber' in data) || (data.trackingNumber is string && data.trackingNumber.size() <= 100)) &&
+             (!('commissionRate' in data) || (data.commissionRate is int && data.commissionRate >= 0 && data.commissionRate <= 100));
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 100 &&
+             data.email is string && data.email.size() <= 150 &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
+             (!('city' in data) || (data.city is string && data.city.size() <= 100)) &&
+             (!('area' in data) || (data.area is string && data.area.size() <= 150)) &&
+             (!('postalCode' in data) || (data.postalCode is string && data.postalCode.size() <= 20)) &&
+             (!('address' in data) || (data.address is string && data.address.size() <= 500)) &&
+             (!('role' in data) || (data.role is string && data.role in ['customer', 'admin'])) &&
+             (!('wishlist' in data) || (data.wishlist is list && data.wishlist.size() <= 100 && (data.wishlist.size() == 0 || data.wishlist[0] is string)));
+    }
+
+    function isValidStoreSettings(data) {
+      return data.storeName is string && data.storeName.size() >= 1 && data.storeName.size() <= 100 &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() <= 30)) &&
+             (!('whatsapp' in data) || (data.whatsapp is string && data.whatsapp.size() <= 30)) &&
+             data.deliveryFee is int && data.deliveryFee >= 0 &&
+             (!('freeShippingThreshold' in data) || (data.freeShippingThreshold is int && data.freeShippingThreshold >= 0)) &&
+             (!('announcement' in data) || (data.announcement is string && data.announcement.size() <= 500)) &&
+             (!('bannerUrls' in data) || (data.bannerUrls is list && data.bannerUrls.size() <= 10 && (data.bannerUrls.size() == 0 || data.bannerUrls[0] is string)));
+    }
+
+    // Categories Collection
+    match /categories/{categoryId} {
+      allow get, list: if true;
+      allow create: if isAdmin() && isValidCategory(incoming()) &&
+                       (!('createdAt' in incoming()) || (incoming().createdAt is timestamp && incoming().createdAt <= request.time));
+      allow update: if isAdmin() && isValidCategory(incoming()) &&
+                       (!('createdAt' in incoming()) || !('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                       (!('updatedAt' in incoming()) || (incoming().updatedAt is timestamp && incoming().updatedAt <= request.time));
+      allow delete: if isAdmin();
+    }
+
+    // Product Catalogue
+    match /products/{productId} {
+      allow get, list: if true;
+      allow create: if isAdmin() && isValidProduct(incoming()) &&
+                       (!('createdAt' in incoming()) || (incoming().createdAt is timestamp && incoming().createdAt <= request.time));
+      allow update: if isAdmin() && isValidProduct(incoming()) &&
+                       (!('createdAt' in incoming()) || !('createdAt' in existing()) || incoming().createdAt == existing().createdAt) &&
+                       (!('updatedAt' in incoming()) || (incoming().updatedAt is timestamp && incoming().updatedAt <= request.time));
+      allow delete: if isAdmin();
+    }
+
+    // Orders Collection
+    match /orders/{orderId} {
+      allow get: if isSignedIn() && (existing().customerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.customerId == request.auth.uid || isAdmin());
+      allow create: if (
+                       (isSignedIn() && incoming().customerId == request.auth.uid) ||
+                       (!isSignedIn() && incoming().customerId.matches('^guest_[a-zA-Z0-9_\\-]+$') && (!('isGuest' in incoming()) || incoming().isGuest == true))
+                     ) &&
+                     incoming().status == 'Pending' &&
+                     incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                     isValidOrder(incoming());
+      allow update: if isSignedIn() &&
+                       (isAdmin() || (existing().customerId == request.auth.uid && existing().status == 'Pending' && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) && incoming().status == 'Cancelled')) &&
+                       isValidOrder(incoming()) &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().customerId == existing().customerId;
+      allow delete: if isAdmin();
+    }
+
+    // Customer Profiles & Wishlists
+    match /users/{userId} {
+      allow get: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isOwner(userId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().createdAt is timestamp && incoming().createdAt <= request.time &&
+                       (!('role' in incoming()) || incoming().role == 'customer' || isAdmin()) &&
+                       isValidUserProfile(incoming());
+      allow update: if isOwner(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       (!('role' in incoming()) || incoming().role == existing().role || isAdmin()) &&
+                       isValidUserProfile(incoming());
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // Store Configuration
+    match /storeSettings/{settingId} {
+      allow get, list: if true;
+      allow create, update: if isAdmin() && isValidStoreSettings(incoming());
+      allow delete: if isAdmin();
+    }
+
+    // Admins registry
+    match /admins/{adminId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow write: if isAdmin();
+    }
+  }
+}

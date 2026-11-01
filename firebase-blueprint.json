@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "Apparel item sold in Hameed Collection",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Product display title" },
+        "description": { "type": "string", "description": "Full product description and fabric details" },
+        "category": { "type": "string", "description": "Category such as Men Unstitched, Kurta, Shawls, Women Pret" },
+        "price": { "type": "integer", "description": "Regular price in PKR" },
+        "salePrice": { "type": "integer", "description": "Discounted sale price in PKR, or 0 if none" },
+        "stock": { "type": "integer", "description": "Available stock quantity" },
+        "images": { "type": "array", "description": "List of product image URLs" },
+        "sizes": { "type": "array", "description": "Available size options (e.g. S, M, L, XL, Standard)" },
+        "colors": { "type": "array", "description": "Available color names" },
+        "isFeatured": { "type": "boolean", "description": "Whether featured on home showcase" },
+        "isNewArrival": { "type": "boolean", "description": "Whether labeled as new arrival" },
+        "isArchived": { "type": "boolean", "description": "Whether archived by admin" },
+        "isAvailable": { "type": "boolean", "description": "Whether product is in stock and available for ordering" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Creation timestamp via serverTimestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last updated timestamp via serverTimestamp" }
+      },
+      "required": ["title", "description", "category", "price", "stock", "createdAt"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Cash on Delivery customer order placed in Hameed Collection",
+      "type": "object",
+      "properties": {
+        "orderNumber": { "type": "string", "description": "Human readable order reference (e.g. HC-20261019-1024)" },
+        "customerId": { "type": "string", "description": "Firebase UID of ordering customer" },
+        "customerName": { "type": "string", "description": "Full name of recipient" },
+        "customerPhone": { "type": "string", "description": "Pakistani contact phone number" },
+        "customerEmail": { "type": "string", "description": "Customer contact email" },
+        "city": { "type": "string", "description": "Destination city in Pakistan" },
+        "deliveryAddress": { "type": "string", "description": "Full street and house delivery address" },
+        "deliveryNotes": { "type": "string", "description": "Optional delivery notes or landmarks" },
+        "items": { "type": "array", "description": "List of ordered items with title, variant, price, qty" },
+        "subtotal": { "type": "integer", "description": "Sum of item prices in PKR" },
+        "deliveryFee": { "type": "integer", "description": "Delivery shipping fee in PKR" },
+        "totalAmount": { "type": "integer", "description": "Final total payable on COD in PKR" },
+        "paymentMethod": { "type": "string", "enum": ["COD"], "description": "Payment method" },
+        "status": {
+          "type": "string",
+          "enum": ["Pending", "Confirmed", "Packed", "Dispatched", "Delivered", "Cancelled", "Returned"],
+          "description": "Order fulfillment status"
+        },
+        "courierName": { "type": "string", "description": "Courier service used (TCS, Leopard, Trax, PostEx, etc.)" },
+        "trackingNumber": { "type": "string", "description": "Courier tracking number if dispatched" },
+        "commissionRate": { "type": "integer", "description": "Optional future multi-vendor commission rate (default 0)" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Order placement timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last status update timestamp" }
+      },
+      "required": ["orderNumber", "customerId", "customerName", "customerPhone", "city", "deliveryAddress", "subtotal", "totalAmount", "status", "paymentMethod", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Customer profile containing saved delivery preferences and wishlist",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase UID matching request.auth.uid" },
+        "name": { "type": "string", "description": "User display name" },
+        "email": { "type": "string", "description": "User email address" },
+        "phone": { "type": "string", "description": "Saved phone number" },
+        "city": { "type": "string", "description": "Saved default city" },
+        "address": { "type": "string", "description": "Saved default delivery address" },
+        "wishlist": { "type": "array", "description": "List of favorite product IDs" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Profile creation timestamp" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Profile update timestamp" }
+      },
+      "required": ["userId", "name", "email", "createdAt"]
+    },
+    "StoreSettings": {
+      "title": "StoreSettings",
+      "description": "Configurable store settings and delivery fees",
+      "type": "object",
+      "properties": {
+        "storeName": { "type": "string", "description": "Store name" },
+        "phone": { "type": "string", "description": "Store contact phone" },
+        "whatsapp": { "type": "string", "description": "Store WhatsApp contact number" },
+        "deliveryFee": { "type": "integer", "description": "Standard delivery fee in PKR" },
+        "freeShippingThreshold": { "type": "integer", "description": "Minimum subtotal for free delivery in PKR" },
+        "announcement": { "type": "string", "description": "Promotional banner announcement message" },
+        "bannerUrls": { "type": "array", "description": "List of promotional banner images" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Settings update timestamp" }
+      },
+      "required": ["storeName", "deliveryFee"]
+    },
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Trusted admin role registry",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "description": "Admin email address" },
+        "role": { "type": "string", "enum": ["admin", "superadmin"], "description": "Admin privilege level" },
+        "addedAt": { "type": "string", "format": "date-time", "description": "Timestamp when admin role granted" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Live catalog of Pakistani clothing products readable by all customers, writable by store admin"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Customer orders: readable by ordering customer and store admin; creatable by authenticated customer; editable by admin"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile and wishlist, private to the authenticated owner and accessible by admin for order fulfillment"
+    },
+    "/storeSettings/{settingId}": {
+      "schema": { "$ref": "#/entities/StoreSettings" },
+      "description": "Store configuration and delivery rules readable by all users, writable by admin"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Security record for admin privilege verification"
+    }
+  }
+}
